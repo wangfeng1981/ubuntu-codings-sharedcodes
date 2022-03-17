@@ -1,5 +1,7 @@
 ﻿/// v1.10.0 之前没有版本信息，统一使用1.10开始计 2022-1-20
-
+/// v1.11.0 增加save函数的无效值设置
+/// v1.12.0 2022-3-12 增加 wGdalRasterFactory::Create(int xsize,int ysize,int nband, GDALDataType outtype);
+/// v1.13.0 2022-3-17 增加输出压缩选项
 
 #ifndef WGDALRASTER_H
 
@@ -42,17 +44,19 @@ public:
 	virtual void setValuei(int it,int ib,int val) =0;
 
 	virtual bool open(string filepath)=0 ;
-	virtual bool save(string filepath)=0 ;
+	bool save(string filepath) ; 
+	bool save(string filepath,double filldata) ;
+    bool save(string filepath,double filldata,bool compress) ; 
 	virtual bool create(int nxsize,int nysize,int nband )=0 ;
  
 	virtual void fill(int iband,int fillval) =0;
     virtual GDALDataType getDataType() =0 ;
 
-        // Double
-        virtual double getValued(int it,int ib) const =0;
-        virtual double getValued(int ix,int iy,int ib) const =0 ;
-        virtual void   setValued(int ix,int iy,int ib,double val) =0 ;
-        virtual void   setValued(int it , int ib, double val)  =0;
+    // Double
+    virtual double getValued(int it,int ib) const =0;
+    virtual double getValued(int ix,int iy,int ib) const =0 ;
+    virtual void   setValued(int ix,int iy,int ib,double val) =0 ;
+    virtual void   setValued(int it , int ib, double val)  =0;
 
 	wGdalRaster() ;
 	wGdalRasterState getState() ;
@@ -70,6 +74,7 @@ protected:
 	char mProj[1024] ;
 	double mTrans[6] ;
 	double mNoDataValue ;//2022-1-20
+	virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress)=0 ;
 } ;
 
 
@@ -95,7 +100,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -113,6 +117,7 @@ public:
     virtual ~wGdalRasterByte() ;
 protected:
     vector<unsigned char*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -136,7 +141,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
     void release() ;
 
@@ -157,6 +161,7 @@ public:
 
 protected:
     vector<unsigned short*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -181,7 +186,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -199,6 +203,7 @@ public:
     virtual ~wGdalRasterI16() ;
 protected:
     vector<short*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -223,7 +228,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -241,6 +245,7 @@ public:
     virtual ~wGdalRasterI32() ;
 protected:
     vector<int*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -264,7 +269,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -282,6 +286,7 @@ public:
     virtual ~wGdalRasterFloat() ;
 protected:
     vector<float*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -307,7 +312,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -325,6 +329,7 @@ public:
     virtual ~wGdalRasterDouble() ;
 protected:
     vector<double*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -349,7 +354,6 @@ public:
     virtual void setValuei(int it,int ib,int val) ;
 
     virtual bool open(string filepath)  ;
-    virtual bool save(string filepath)  ;
     virtual bool create(int nxsize,int nysize,int nband )  ;
 
     //new
@@ -367,6 +371,7 @@ public:
     virtual ~wGdalRasterU32() ;
 protected:
     vector<unsigned int*> mptrVec ;
+    virtual bool save_pr(string filepath,bool usefilldata,double filldata,bool compress);
 } ;
 
 
@@ -380,7 +385,10 @@ protected:
 class wGdalRasterFactory
 {
 public:
+	//调用者负责维护指针
     static wGdalRaster* OpenFile(string filename) ;
+	//2022-3-12 调用者负责维护指针
+	static wGdalRaster* Create(int xsize,int ysize,int nband, GDALDataType outtype);
 
 };
 
@@ -439,6 +447,19 @@ const int wGdalRaster::getYSize() const
 int wGdalRaster::getNBand()
 {
 	return mNBand ;
+}
+
+bool wGdalRaster::save(string filepath)  
+{
+	return save_pr(filepath,false,0      ,false); 
+} 
+bool wGdalRaster::save(string filepath,double filldata)
+{
+	return save_pr(filepath,true,filldata,false); 
+}
+bool wGdalRaster::save(string filepath,double filldata,bool compress)
+{
+    return save_pr(filepath,true,filldata,compress); 
 }
  
 //------------------------------------------------------------------------------------------------------
@@ -568,7 +589,8 @@ bool wGdalRasterByte::open(string filepath)
 	this->mState = wGdalRasterStateOpen ;
 	return true ;
 }
-bool wGdalRasterByte::save(string filepath) 
+
+bool wGdalRasterByte::save_pr(string filepath,bool usefilldata,double filldata,bool compress) 
 {
 	if( this->mState == wGdalRasterStateNone)
 	{
@@ -589,7 +611,10 @@ bool wGdalRasterByte::save(string filepath)
 		driver = GetGDALDriverManager()->GetDriverByName("GTiff");
 	}
 
-	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Byte,0) ;
+    CPLStringList opt ;
+    if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Byte,opt.List()) ;
 	if( ds==0 )
 	{
 		return false  ;
@@ -602,6 +627,7 @@ bool wGdalRasterByte::save(string filepath)
 			ptr , 
 			mXSize,mYSize,GDT_Byte , 
 			0,0,0) ;
+		if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
 	}
 	if( strlen( mProj ) > 1 && mTrans[1] > 0 )
 	{
@@ -784,14 +810,18 @@ bool wGdalRasterFloat::open(string filepath)
 	this->mState = wGdalRasterStateOpen ;
 	return true ;
 }
-bool wGdalRasterFloat::save(string filepath) 
+bool wGdalRasterFloat::save_pr(string filepath,bool usefilldata,double filldata,bool compress) 
 {
 	if( this->mState == wGdalRasterStateNone)
 	{
 		return false   ;
 	}
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Float32 ,0) ;
+
+    CPLStringList opt ;
+    if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Float32 ,opt.List()) ;
 	if( ds==0 )
 	{
 		return false  ;
@@ -804,6 +834,7 @@ bool wGdalRasterFloat::save(string filepath)
 			ptr , 
 			mXSize,mYSize,GDT_Float32 , 
 			0,0,0) ;
+		if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
 	}
 	if( strlen( mProj ) > 1 && mTrans[1] > 0 )
 	{
@@ -997,14 +1028,18 @@ bool wGdalRasterU16::open(string filepath)
 	this->mState = wGdalRasterStateOpen ;
 	return true ;
 }
-bool wGdalRasterU16::save(string filepath) 
+bool wGdalRasterU16::save_pr(string filepath,bool usefilldata,double filldata,bool compress) 
 {
 	if( this->mState == wGdalRasterStateNone)
 	{
 		return false   ;
 	}
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_UInt16 ,0) ;
+
+    CPLStringList opt ;
+    if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_UInt16 ,opt.List()) ;
 	if( ds==0 )
 	{
 		return false  ;
@@ -1017,6 +1052,7 @@ bool wGdalRasterU16::save(string filepath)
 			ptr , 
 			mXSize,mYSize,GDT_UInt16 , 
 			0,0,0) ;
+		if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
 	}
 	if( strlen( mProj ) > 1 && mTrans[1] > 0 )
 	{
@@ -1198,14 +1234,18 @@ bool wGdalRasterI16::open(string filepath)
 	this->mState = wGdalRasterStateOpen ;
 	return true ;
 }
-bool wGdalRasterI16::save(string filepath) 
+bool wGdalRasterI16::save_pr(string filepath,bool usefilldata,double filldata,bool compress) 
 {
 	if( this->mState == wGdalRasterStateNone)
 	{
 		return false   ;
 	}
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Int16 ,0) ;
+
+    CPLStringList opt ;
+    if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Int16 ,opt.List()) ;
 	if( ds==0 )
 	{
 		return false  ;
@@ -1218,6 +1258,7 @@ bool wGdalRasterI16::save(string filepath)
 			ptr , 
 			mXSize,mYSize,GDT_Int16 , 
 			0,0,0) ;
+		if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
 	}
 	if( strlen( mProj ) > 1 && mTrans[1] > 0 )
 	{
@@ -1396,14 +1437,18 @@ bool wGdalRasterI32::open(string filepath)
 	this->mState = wGdalRasterStateOpen ;
 	return true ;
 }
-bool wGdalRasterI32::save(string filepath) 
+bool wGdalRasterI32::save_pr(string filepath,bool usefilldata,double filldata,bool compress) 
 {
 	if( this->mState == wGdalRasterStateNone)
 	{
 		return false   ;
 	}
 	GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Int32 ,0) ;
+
+    CPLStringList opt ;
+    if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+	GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Int32 ,opt.List()) ;
 	if( ds==0 )
 	{
 		return false  ;
@@ -1416,6 +1461,7 @@ bool wGdalRasterI32::save(string filepath)
 			ptr , 
 			mXSize,mYSize,GDT_Int32 , 
 			0,0,0) ;
+		if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
 	}
 	if( strlen( mProj ) > 1 && mTrans[1] > 0 )
 	{
@@ -1565,7 +1611,61 @@ wGdalRaster* wGdalRasterFactory::OpenFile(string filename)
 
 }
 
-
+wGdalRaster* wGdalRasterFactory::Create(int xsize, int ysize, int nband, GDALDataType outtype)
+{
+	if (outtype == GDT_Byte) {
+		wGdalRasterByte* ptr = new wGdalRasterByte();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_Int16) {
+		wGdalRasterI16* ptr = new wGdalRasterI16();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_UInt16) {
+		wGdalRasterU16* ptr = new wGdalRasterU16();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_Int32) {
+		wGdalRasterI32* ptr = new wGdalRasterI32();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_UInt32) {
+		wGdalRasterU32* ptr = new wGdalRasterU32();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_Float32) {
+		wGdalRasterFloat* ptr = new wGdalRasterFloat();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else if (outtype == GDT_Float64) {
+		wGdalRasterDouble* ptr = new wGdalRasterDouble();
+		if (ptr == 0) return 0;
+		bool ok = ptr->create(xsize, ysize, nband);
+		if (ok == false) return 0;
+		else return ptr;
+	}
+	else {
+		return 0;
+	}
+}
 
 
 
@@ -1720,26 +1820,31 @@ bool wGdalRasterDouble::open(string filepath)
         this->mState = wGdalRasterStateOpen ;
         return true ;
 }
-bool wGdalRasterDouble::save(string filepath)
+bool wGdalRasterDouble::save_pr(string filepath,bool usefilldata,double filldata,bool compress)
 {
         if( this->mState == wGdalRasterStateNone)
         {
                 return false   ;
         }
         GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-        GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Float64 ,0) ;
+
+        CPLStringList opt ;
+        if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+        GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_Float64 ,opt.List()) ;
         if( ds==0 )
         {
                 return false  ;
         }
         for(int i = 0 ; i<mNBand ; ++ i )
         {
-                double* ptr = mptrVec[i] ;
-                ds->GetRasterBand(i+1)->RasterIO( GF_Write,
-                        0,0,mXSize,mYSize,
-                        ptr ,
-                        mXSize,mYSize,GDT_Float64 ,
-                        0,0,0) ;
+            double* ptr = mptrVec[i] ;
+            ds->GetRasterBand(i+1)->RasterIO( GF_Write,
+                    0,0,mXSize,mYSize,
+                    ptr ,
+                    mXSize,mYSize,GDT_Float64 ,
+                    0,0,0) ;
+            if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
         }
         if( strlen( mProj ) > 1 && mTrans[1] > 0 )
         {
@@ -1917,26 +2022,31 @@ bool wGdalRasterU32::open(string filepath)
         this->mState = wGdalRasterStateOpen ;
         return true ;
 }
-bool wGdalRasterU32::save(string filepath)
+bool wGdalRasterU32::save_pr(string filepath,bool usefilldata,double filldata,bool compress)
 {
         if( this->mState == wGdalRasterStateNone)
         {
                 return false   ;
         }
         GDALDriver* driver = GetGDALDriverManager()->GetDriverByName("GTiff");
-        GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_UInt32 ,0) ;
+
+        CPLStringList opt ;
+        if( compress==true ) opt.SetNameValue("COMPRESS" , "Deflate") ;
+
+        GDALDataset* ds = driver->Create( filepath.c_str() , mXSize, mYSize , mNBand,GDT_UInt32 ,opt.List() ) ;
         if( ds==0 )
         {
                 return false  ;
         }
         for(int i = 0 ; i<mNBand ; ++ i )
         {
-                unsigned int* ptr = mptrVec[i] ;
-                ds->GetRasterBand(i+1)->RasterIO( GF_Write,
-                        0,0,mXSize,mYSize,
-                        ptr ,
-                        mXSize,mYSize,GDT_UInt32 ,
-                        0,0,0) ;
+            unsigned int* ptr = mptrVec[i] ;
+            ds->GetRasterBand(i+1)->RasterIO( GF_Write,
+                    0,0,mXSize,mYSize,
+                    ptr ,
+                    mXSize,mYSize,GDT_UInt32 ,
+                    0,0,0) ;
+            if( usefilldata ) ds->GetRasterBand(i+1)->SetNoDataValue(filldata);
         }
         if( strlen( mProj ) > 1 && mTrans[1] > 0 )
         {
