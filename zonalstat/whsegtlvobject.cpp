@@ -1,5 +1,7 @@
 /// Hseg tlv 数据对象
-///
+/// 2022-3-23 1059
+
+
 #include "whsegtlvobject.h"
 #include <stdio.h>
 #include <string.h>
@@ -231,4 +233,32 @@ bool WHsegTlvObject::isTileOverlay( int tilez,int tiley,int tilex)
         }
     }
     return false;
+}
+
+
+//2022-3-23 计算hseg四角范围 只计算level0
+bool WHsegTlvObject::computeExtent(double& left,double& right,double& top,double& bottom) 
+{
+	if( allLevelHsegs.size()==0 ){
+        return false ;
+    }
+    if( allLevelHsegs[0].hsegs.size()==0 ){
+        return false;
+    }
+    const double resoLevel0 = 360.0 / 256 ;
+    int ytop = allLevelHsegs[0].hsegs[0].y ;
+    int ybottom = allLevelHsegs[0].hsegs.back().y ;
+    int xleft = 255 ;
+    int xright = 0 ;
+    for(int i = 0 ; i<allLevelHsegs[0].hsegs.size() ; ++ i )
+    {
+    	xleft  = std::min( xleft  ,allLevelHsegs[0].hsegs[i].x0 ) ;
+    	xright = std::max( xright ,allLevelHsegs[0].hsegs[i].x1 ) ;
+    }
+    left = -180 + xleft * resoLevel0  ;
+    right = -180 + xright * resoLevel0 + resoLevel0; 
+    top = 90.0 - ytop * resoLevel0 ;
+    bottom = 90.0 - ybottom * resoLevel0 - resoLevel0 ; 
+
+    return true ;
 }

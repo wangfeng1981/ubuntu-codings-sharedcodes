@@ -1,4 +1,5 @@
 /// Hseg tlv 数据对象
+/// 2022-3-23 1059
 ///
 #ifndef W_HSEG_GEOTIFF_WRITER_H
 #define W_HSEG_GEOTIFF_WRITER_H
@@ -30,6 +31,8 @@ struct WHsegTlvObject {
 
 	//瓦片是否与HSeg ROI有重叠区域,只判断第0级
 	bool isTileOverlay( int tilez,int tiley,int tilex) ;
+	//2022-3-23 计算hseg四角范围 只计算level0
+	bool computeExtent(double& left,double& right,double& top,double& bottom) ;
 
 private:
 	void readTLV(FILE* pf,TLV& r_tlv) ;
